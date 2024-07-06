@@ -1,6 +1,7 @@
 import os
 import tkinter as tk
 from tkinter import filedialog, messagebox
+import datetime
 
 def select_folder():
     folder_selected = filedialog.askdirectory()
@@ -15,26 +16,46 @@ def replace_text():
         messagebox.showerror("エラー", "すべてのフィールドを入力してください")
         return
 
-    try:
-        for filename in os.listdir(folder):
-            if filename.endswith('.pl3'):
-                file_path = os.path.join(folder, filename)
-                
-                try:
-                    with open(file_path, 'rb') as file:
-                        binary_content = file.read()
-                    
-                    binary_str = binary_content.decode('ISO-8859-1')
-                    modified_str = binary_str.replace(old_str, new_str)
-                    modified_binary_content = modified_str.encode('ISO-8859-1')
-                    
-                    with open(file_path, 'wb') as file:
-                        file.write(modified_binary_content)
-                except Exception as e:
-                    messagebox.showerror("ファイルエラー", f"ファイル '{filename}' の処理中にエラーが発生しました: {str(e)}")
-                    return
+    log_entries = []
+    errors_occurred = False
 
-        messagebox.showinfo("完了", "フォルダ内のすべての .pl3 ファイルで置換処理が完了しました。")
+    try:
+        for root, dirs, files in os.walk(folder):
+            for filename in files:
+                if filename.endswith('.pl3'):
+                    file_path = os.path.join(root, filename)
+                    
+                    try:
+                        with open(file_path, 'rb') as file:
+                            binary_content = file.read()
+                        
+                        binary_str = binary_content.decode('ISO-8859-1')
+                        if old_str in binary_str:
+                            modified_str = binary_str.replace(old_str, new_str)
+                            modified_binary_content = modified_str.encode('ISO-8859-1')
+                        
+                            with open(file_path, 'wb') as file:
+                                file.write(modified_binary_content)
+                            
+                            log_entries.append(f"置換成功: {file_path}")
+                        else:
+                            log_entries.append(f"文字列が見つかりませんでした: {file_path}")
+                    except Exception as e:
+                        log_entries.append(f"置換失敗: {file_path}, エラー: {str(e)}")
+                        errors_occurred = True
+
+        log_path = os.path.join(folder, f"replace_log_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt")
+        try:
+            with open(log_path, 'w', encoding='utf-8') as log_file:
+                log_file.write('\n'.join(log_entries))
+            
+            if errors_occurred:
+                messagebox.showwarning("警告", f"処理中にエラーが発生しました。詳細はログファイルを確認してください: {log_path}")
+            else:
+                messagebox.showinfo("完了", f"フォルダ内のすべての .pl3 ファイルで置換処理が完了しました。ログファイル: {log_path}")
+        except Exception as e:
+            messagebox.showerror("ログファイルエラー", f"ログファイルの作成中にエラーが発生しました: {str(e)}")
+
     except Exception as e:
         messagebox.showerror("フォルダエラー", f"フォルダの処理中にエラーが発生しました: {str(e)}")
 
